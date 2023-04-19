@@ -1,0 +1,285 @@
+No console do Linux, crie uma conta de usuário do Prometheus.
+
+# groupadd --system prometheus
+# useradd -s /bin/false -r -g prometheus prometheus
+
+Crie os diretórios necessários do Prometheus.
+
+# mkdir /etc/prometheus
+# mkdir /var/lib/prometheus
+
+Execute o download do Prometheus.
+
+# mkdir /downloads/prometheus -p
+# cd /downloads/prometheus
+# wget https://github.com/prometheus/prometheus/releases/download/v2.8.0/prometheus-2.8.0.linux-amd64.tar.gz
+
+Extraia e instale o pacote de monitoramento Prometheus.
+
+# tar -zxvf prometheus-2.8.0.linux-amd64.tar.gz
+# cd prometheus-2.8.0.linux-amd64/
+# install prometheus /usr/local/bin/
+# install promtool /usr/local/bin/
+# mv consoles /etc/prometheus/
+# mv console_libraries /etc/prometheus/
+
+Crie um arquivo de configuração do Prometheus.
+
+# cd /etc/prometheus
+# vi prometheus.yml
+
+Aqui está o conteúdo do arquivo Prometheus.yml.
+
+Copy
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['localhost:9090']
+global:
+  scrape_interval: 15s
+​
+scrape_configs:
+  - job_name: 'prometheus'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['localhost:9090']
+Defina a permissão correta nos arquivos de instalação do Prometheus.
+
+$ chown prometheus:prometheus /usr/local/bin/prometheus
+$ chown prometheus:prometheus /usr/local/bin/promtool
+$ chown prometheus:prometheus /var/lib/prometheus -R
+$ chown prometheus:prometheus /etc/prometheus -R
+$ chmod -R 775 /etc/prometheus/ /var/lib/prometheus/
+
+Use o seguinte comando para iniciar o Prometheus manualmente.
+
+$ prometheus --config.file /etc/prometheus/prometheus.yml --storage.tsdb.path /var/lib/prometheus/ --web.console.templates=/etc/prometheus/consoles --web.console.libraries=/etc/prometheus/console_libraries
+
+Você deve ver as seguintes mensagens de log.
+
+Copy
+level=info ts=2019-03-27T02:23:45.334401888Z caller=main.go:285 msg="no time or size retention was set so using the default time retention" duration=15d
+level=info ts=2019-03-27T02:23:45.334605464Z caller=main.go:321 msg="Starting Prometheus" version="(version=2.8.0, branch=HEAD, revision=59369491cfdfe8dcb325723d6d28a837887a07b9)"
+level=info ts=2019-03-27T02:23:45.334717119Z caller=main.go:322 build_context="(go=go1.11.5, user=root@4c4d5c29b71f, date=20190312-07:46:58)"
+level=info ts=2019-03-27T02:23:45.334815776Z caller=main.go:323 host_details="(Linux 4.15.0-1032-aws #34-Ubuntu SMP Thu Jan 17 15:18:09 UTC 2019 x86_64 ip-172-31-33-180 (none))"
+level=info ts=2019-03-27T02:23:45.334918895Z caller=main.go:324 fd_limits="(soft=1024, hard=1048576)"
+level=info ts=2019-03-27T02:23:45.334985623Z caller=main.go:325 vm_limits="(soft=unlimited, hard=unlimited)"
+level=info ts=2019-03-27T02:23:45.336436126Z caller=main.go:640 msg="Starting TSDB ..."
+level=info ts=2019-03-27T02:23:45.34377978Z caller=main.go:655 msg="TSDB started"
+level=info ts=2019-03-27T02:23:45.343873906Z caller=main.go:724 msg="Loading configuration file" filename=/etc/prometheus/prometheus.yml
+level=info ts=2019-03-27T02:23:45.34434014Z caller=main.go:751 msg="Completed loading of configuration file" filename=/etc/prometheus/prometheus.yml
+level=info ts=2019-03-27T02:23:45.34441261Z caller=main.go:609 msg="Server is ready to receive web requests."
+level=info ts=2019-03-27T02:23:45.344484105Z caller=web.go:418 component=web msg="Start listening for connections" address=0.0.0.0:9090
+Prometheus Startup Script.
+Crie um script de inicialização do Prometheus.
+
+$ vi /etc/systemd/system/prometheus.service
+
+Aqui está o conteúdo do arquivo prometheus.service.
+
+[Unit]
+
+Description=Prometheus
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+
+User=prometheus
+Group=prometheus
+Type=simple
+ExecStart=/usr/local/bin/prometheus --config.file /etc/prometheus/prometheus.yml \
+--storage.tsdb.path /var/lib/prometheus/ --web.console.templates=/etc/prometheus/consoles \
+--web.console.libraries=/etc/prometheus/console_libraries
+
+[Install]
+
+WantedBy=multi-user.target
+SyslogIdentifier=prometheus
+Restart=always
+
+Ative o serviço Prometheus para iniciar durante a inicialização do computador.
+
+$ chown prometheus:prometheus /var/lib/prometheus -R
+$ chmod 775 /var/lib/prometheus -R
+$ systemctl daemon-reload
+$ systemctl enable prometheus
+$ systemctl start prometheus
+
+O serviço Prometheus começará a escutar na porta TCP 9090.
+
+Use o seguinte comando para verificar o status do serviço Prometheus.
+
+$ systemctl status prometheus
+
+Aqui está um exemplo da saída de status do serviço Prometheus
+
+● prometheus.service - Prometheus
+Loaded: loaded (/etc/systemd/system/prometheus.service; enabled; vendor preset: enabled)
+Active: active (running) since Wed 2019-03-27 02:59:44 UTC; 22h ago
+Main PID: 29882 (prometheus)
+Tasks: 8 (limit: 1152)
+CGroup: /system.slice/prometheus.service
+└─29882 /usr/local/bin/prometheus --config.file /etc/prometheus/prometheus.yml --storage.tsdb.path /var/lib/prometheus/ --web.console.templates=/etc/prometheus/consoles --web.console.lib
+
+Acesso ao Painel Prometheus
+Abra seu navegador e digite o endereço IP do seu servidor mais: 9090
+
+Em nosso exemplo, o seguinte URL foi inserido no navegador:
+
+• http://34.216.84.149:9090
+
+Caso não funcione instale o nginx 
+
+$ yum install ngnix -y
+
+$ systemctl start nginx
+
+$ systemctl enable nginx
+
+$ systemctl status nginx
+
+Desvincule o arquivo padrão.
+
+$ sudo unlink /etc/nginx/sites-enabled/default
+
+Crie um arquivo de conf
+
+$ vi /etc/nginx/sites-available/prometheus.conf
+
+Adicione o Código abaixo dentro do arquivo
+
+$ server {
+
+    listen 8080;
+
+    location / {
+
+        proxy_pass http://localhost:9090;
+
+    }
+
+}
+
+ative o arquivo
+
+$ ln -s /etc/nginx/sites-available/prometheus.conf /etc/nginx/sites-enabled/prometheus.conf
+
+
+verifique se a configuração funcionou
+
+$ sudo service nginx configtest
+
+reinicie o serviço do nginx
+
+$ systemctl restart nginx
+
+Acesse a aplicação 
+
+http://seuendereco:8080/graph
+
+A interface da Web Prometheus deve ser apresentada.
+
+prometheus dashboard
+
+##############################################################
+
+## Instalação Grafana
+
+Instale os pacotes de sistema necessários.
+
+$ yum install -y gnupg2 curl software-properties-common
+
+Adicione a chave Grafana GPG.
+
+$ curl https://packages.grafana.com/gpg.key | sudo apt-key add -
+Instale o repositório Grafana.
+
+$ sudo add-repo "https://packages.grafana.com/oss/RHEL stable main"
+
+Atualize os pacotes do sistema.
+
+$ sudo yum update
+Instalar o Grafana
+
+$ sudo yum install grafana -y
+
+Inicie o serviço Grafana.
+
+$ sudo systemctl start grafana-server
+
+Habilite o serviço Grafana para iniciar na inicialização do sistema.
+
+$ sudo systemctl enable grafana-server
+
+Verifique o estado do serviço.
+
+$ sudo systemctl status grafana-server
+
+Por padrão, o Grafana está acessível na porta 3000. Para usar o Grafana na porta 80, você pode executar um proxy reverso para encaminhar todo o tráfego na porta 3000 para a porta 80. Para fazer isso, você pode seguir as instruções na próxima etapa. Caso contrário, use a porta 3000 para acessar a interface da Web do Grafana.
+
+2. Instale e configure o proxy reverso Nginx (opcional)
+
+Instale o Nginx.
+
+$ sudo yum install nginx -y
+
+Inicie o serviço Nginx.
+
+$ sudo systemctl start nginx
+
+Habilite o serviço Nginx para iniciar na inicialização do sistema.
+
+$ sudo systemctl enable nginx
+
+Verifique o status do serviço Nginx.
+
+$ sudo systemctl status nginx
+
+Desvincule o arquivo de configuração padrão.
+
+$ sudo unlink /etc/nginx/sites-enabled/default
+
+Crie um novo arquivo de configuração.
+
+$ sudo nano /etc/nginx/sites-available/grafana.conf
+
+Adicione o seguinte código no novo arquivo, salve e feche o arquivo:
+
+server {
+
+    listen 80;
+
+    location / {
+
+        proxy_pass http://localhost:3000;
+
+    }
+
+}
+
+Vincule e ative o novo arquivo de configuração.
+
+$ sudo ln -s /etc/nginx/sites-available/grafana.conf /etc/nginx/sites-enabled/grafana.conf
+
+Teste o arquivo de configuração.
+
+$ sudo service nginx configtest
+
+Reinicie o serviço Nginx.
+
+$ sudo systemctl restart nginx
+
+3. Acesse o painel do Grafana
+
+Para acessar a Interface da Web do Grafana sem proxy reverso, acesse seu navegador e visite http://Server_IP:3000/. Por exemplo:
+
+http://192.0.2.10:3000/
+
+Para acessar a Interface da Web do Grafana pelo proxy reverso, acesse seu navegador e visite http://Server_IP/. Por exemplo:
+
+http://192.0.2.10/
